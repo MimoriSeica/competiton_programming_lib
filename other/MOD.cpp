@@ -49,15 +49,15 @@ long long mod_div(long long a,long long b){
 }
 
 #define MAX_K 333333
-vector<long long> kaijo(MAX_K);
+vector<long long> fact(MAX_K);
 long long combination(long long n, long long r){
     if(n < r || n < 0 || r < 0)
         return 0;
-	if(kaijo[0] != 1){
-		kaijo[0] = 1;
-		for(long long i = 1;i < MAX_K;i++)kaijo[i] = (kaijo[i-1] * i) % MOD;
+	if(fact[0] != 1){
+		fact[0] = 1;
+		for(long long i = 1;i < MAX_K;i++)fact[i] = (fact[i-1] * i) % MOD;
 	}
-    long long ret = kaijo[n];
-	long long tmp = (kaijo[r] * kaijo[n-r]) % MOD;
+    long long ret = fact[n];
+	long long tmp = (fact[r] * fact[n-r]) % MOD;
     return mod_div(ret,tmp);
 }
