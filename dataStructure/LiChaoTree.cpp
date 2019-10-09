@@ -78,30 +78,29 @@ struct LiChaoTree {
         }
     }
 
-	// [a, b) に線分を追加
+    // [a, b) に線分を追加
     void add_line(pair<T, T> line, int a, int b) {
-        int A = a + n;
-        int B = b + n;
+        int A = a + n - 1;
+        int B = b + n - 1;
         int sz = 1;
         int al = a;
         int bl = b;
         while(A < B){
-            if(A & 1){
-                add_line(line, A-1, al, al+sz);
-				A += 1;
+            if((A & 1) == 0){
+                add_line(line, A++, al, al+sz);
                 al += sz;
             }
-            if(B & 1){
-				B -= 1;
+            if((B & 1) == 0){
                 bl -= sz;
-                add_line(line, B-1, bl, bl+sz);
+                add_line(line, --B, bl, bl+sz);
             }
             A = A >> 1;
             B = B >> 1;
             sz = sz << 1;
         }
     }
-
+    
+    // 直線を追加
     void add_line(pair<T, T> line){
         add_line(line, 0, 0, n);
     }
