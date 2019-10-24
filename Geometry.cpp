@@ -15,25 +15,28 @@ using namespace std;
 #define Decimal fixed<<setprecision(20)
 #define INF 1000000000
 #define LLINF 1000000000000000000LL
-#define MOD 1000000007
+#define MOD 998244353
+
+typedef long long ll;
+typedef pair<ll,ll> P;
 //--------geometry original ------------------
 #define curr(PP, i) PP[i]
 #define next(PP, i) PP[(i+1)%PP.size()]
 #define diff(PP, i) (next(PP, i) - curr(PP, i))
-#define X real()
-#define Y imag()
+#define eq(n,m) (abs((n)-(m)) < EPS)
 
 typedef long long ll;
 typedef pair<ll, ll> P;
 
-const double EPS = 1e-12;
+const double EPS = 1e-8;
+const double EPS_GIG = 1e-3;
 const double PI = acos(-1.0);
 typedef complex<double> point;
 namespace std {
 	bool operator < (const point& a, const point& b) {
 		return real(a) != real(b) ? real(a) < real(b) : imag(a) < imag(b);
 	}
-	
+
 	bool operator == (const point& a,const point& b) {
 		return (abs(a.real() - b.real()) < EPS && abs(a.imag() - b.imag()) < EPS);
 	}
@@ -43,6 +46,17 @@ struct circle {
 	circle(){}
 	circle(const point &p, double r) : p(p), r(r) { }
 };
+
+// 扇型、中心と半径、二つの端点
+// 現在中心角が180未満の前提
+struct sector {
+	point o;
+	point a, b;
+	double r;
+	sector(){}
+	sector(point O, point A, point B, double _r) :o(O), a(A), b(B), r(_r) {}
+};
+
 struct segment : public vector<point> {
 	segment(const point &a, const point &b) {
 		push_back(a); push_back(b);
@@ -57,143 +71,10 @@ double dot(const point& a, const point& b) {
 	return real(conj(a)*b);
 }
 
-/*
-a → b で時計方向に折れて b → c
-a → b で半時計方向に折れて b → c
-a → b で逆を向いて a を通り越して b → c
-a → b でそのまま b → c
-a → b で逆を向いて b → c ( または b == c )
-*/
-
-int ccw(point a, point b, point c) {
-	b -= a; c -= a;
-	if (cross(b, c) > 0)   return +1;       // counter clockwise
-	if (cross(b, c) < 0)   return -1;       // clockwise
-	if (dot(b, c) < 0)     return +2;       // c--a--b on line
-	if (norm(b) < norm(c)) return -2;       // a--b--c on line
-	return 0;
-}
-
-bool intersectLL(const segment &l, const segment &m) {
-	return abs(cross(l[1] - l[0], m[1] - m[0])) > EPS || // non-parallel
-		abs(cross(l[1] - l[0], m[0] - l[0])) < EPS;   // same line
-}
-bool intersectLS(const segment &l, const segment &s) {
-	return cross(l[1] - l[0], s[0] - l[0])*       // s[0] is left of l
-		cross(l[1] - l[0], s[1] - l[0]) < EPS; // s[1] is right of l
-}
-bool intersectLP(const segment &l, const point &p) {
-	return abs(cross(l[1] - p, l[0] - p)) < EPS;
-}
-bool intersectSP(const segment &s, const point &p) {
-	return abs(s[0] - p) + abs(s[1] - p) - abs(s[1] - s[0]) < EPS; // triangle inequality
-}
-//端点の交差も考える
-bool intersectSS(const segment &s, const segment &t) {
-	return ccw(s[0], s[1], t[0])*ccw(s[0], s[1], t[1]) <= 0 &&
-		ccw(t[0], t[1], s[0])*ccw(t[0], t[1], s[1]) <= 0;
-}
-
-point projection(const segment &l, const point &p) {
-	double t = dot(p - l[0], l[0] - l[1]) / norm(l[0] - l[1]);
-	return l[0] + t*(l[0] - l[1]);
-}
-point reflection(const segment &l, const point &p) {
-	return p + 2. * (projection(l, p) - p);
-}
-double distanceLP(const segment &l, const point &p) {
-	return abs(p - projection(l, p));
-}
-double distanceLL(const segment &l, const segment &m) {
-	return intersectLL(l, m) ? 0 : distanceLP(l, m[0]);
-}
-double distanceLS(const segment &l, const segment &s) {
-	if (intersectLS(l, s)) return 0;
-	return min(distanceLP(l, s[0]), distanceLP(l, s[1]));
-}
-double distanceSP(const segment &s, const point &p) {
-	const point r = projection(s, p);
-	if (intersectSP(s, r)) return abs(r - p);
-	return min(abs(s[0] - p), abs(s[1] - p));
-}
-double distanceSS(const segment &s, const segment &t) {
-	if (intersectSS(s, t)) return 0;
-	return min(min(distanceSP(s, t[0]), distanceSP(s, t[1])),
-		min(distanceSP(t, s[0]), distanceSP(t, s[1])));
-}
-double distancePP(const point &a,const point &b){
-	return abs(a-b);
-}
-
-//交点
-point crosspoint(const segment &l, const segment &m) {
-	double A = cross(l[1] - l[0], m[1] - m[0]);
-	double B = cross(l[1] - l[0], l[1] - m[0]);
-	if (abs(A) < EPS && abs(B) < EPS) return m[0]; // same line
-	if (abs(A) < EPS) return point(INF,INF); // !!!PRECONDITION NOT SATISFIED!!!
-	return m[0] + B / A * (m[1] - m[0]);
-}
-
-//凸包
-vector<point> convex_hull(vector<point> ps) {
-	int n = ps.size(), k = 0;
-	sort(ps.begin(), ps.end());
-	vector<point> ch(2*n);
-	for (int i = 0; i < n; ch[k++] = ps[i++]) // lower-hull
-		while (k >= 2 && ccw(ch[k-2], ch[k-1], ps[i]) == -1) --k;
-	for (int i = n-2, t = k+1;i >= 0; ch[k++] = ps[i--]) // upper-hull
-		while (k >= t && ccw(ch[k-2], ch[k-1], ps[i]) == -1) --k;
-	ch.resize(k - 1);
-	return ch;
-}
-
-/*多角形内包判定
-OUT:0
-ON:1
-IN:2
-*/
-
-int contains(const vector<point>& Poly, const point& p) {
-	bool in = false;
-	for (int i = 0; i < Poly.size(); ++i) {
-		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
-		if (imag(a) > imag(b)) swap(a, b);
-		if (imag(a) <= 0 && 0 < imag(b))
-			if (cross(a, b) < 0) in = !in;
-		if (cross(a, b) == 0 && dot(a, b) <= 0) return 1;
-	}
-	return in ? 2 : 0;
-}
-
-//見えるか(可視グラフ用) 
-bool block_off(const point &a, const point &b, const vector<point> &obj) {
-  point m = (a+b)/2.0;
-  bool on = false, in = false;
-  for (int j = 0; j < obj.size(); ++j) {
-    point c = curr(obj,j), d = next(obj,j);
-    if (imag(d) < imag(c)) swap(c, d);
-    if (cross(a-c,b-c) * cross(a-d,b-d) < 0 &&    // strictly intersect.
-        cross(c-a,d-a) * cross(c-b,d-b) < 0) return true;
-    if (cross(a-c,b-c) == 0 && dot(a-c,b-c) < 0) return true;
-    if (imag(c) <= imag(m) && imag(m) < imag(d))  // strictly contain.
-      if (cross(c-m,d-m) < 0) in = !in;
-    if (cross(c-m,d-m) == 0 && dot(c-m,d-m) <= 0) on = true;
-  }
-  return !on && in;
-}
-
-//面積
-double area(const vector<point>& p) {
-	double A = 0;
-	for (int i = 0; i < p.size(); ++i)
-		A += cross(curr(p, i), next(p, i));
-	return A / 2.;
-}
-
 //角度足し算
 double add_rad(double a,double b){
 	double ret = a + b;
-	if(ret > PI)ret -= 2 * PI;
+	if(ret > 2 * PI)ret -= 2 * PI;
 	return ret;
 }
 
@@ -228,6 +109,234 @@ bool isOrthogonal(const point &a,const point &b){
 bool isOrthogonal(const segment &a,const segment &b){
 	return isOrthogonal(a[1]-a[0],b[1]-b[0]);
 }
+
+/*
+a → b で時計方向に折れて b → c
+a → b で半時計方向に折れて b → c
+a → b で逆を向いて a を通り越して b → c
+a → b でそのまま b → c
+a → b で逆を向いて b → c ( または b == c )
+*/
+
+int ccw(point a, point b, point c) {
+	b -= a; c -= a;
+	if (cross(b, c) > EPS)   return +1;       // counter clockwise
+	if (cross(b, c) + EPS < 0)   return -1;       // clockwise
+	if (dot(b, c) - EPS < 0)     return +2;       // c--a--b on line
+	if (norm(b) < norm(c)) return -2;       // a--b--c on line
+	return 0;
+}
+
+bool intersectLL(const segment &l, const segment &m) {
+	return abs(cross(l[1] - l[0], m[1] - m[0])) > EPS || // non-parallel
+		abs(cross(l[1] - l[0], m[0] - l[0])) < EPS;   // same line
+}
+bool intersectLS(const segment &l, const segment &s) {
+	return cross(l[1] - l[0], s[0] - l[0])*       // s[0] is left of l
+		cross(l[1] - l[0], s[1] - l[0]) < EPS; // s[1] is right of l
+}
+bool intersectLP(const segment &l, const point &p) {
+	return abs(cross(l[1] - p, l[0] - p)) < EPS;
+}
+bool intersectSP(const segment &s, const point &p) {
+	auto a = s[0] - p;
+	auto b = s[1] - p;
+	return (abs(cross(a, b)) < EPS && dot(a, b) <= EPS); // triangle inequality
+}
+//端点の交差も考える
+bool intersectSS(const segment &s, const segment &t) {
+	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) <= 0 &&
+		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) <= 0;
+}
+//端点の交差hは考えない
+bool strictIntersectSS(const segment &s, const segment &t) {
+	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) == -1 &&
+		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) == -1;
+}
+
+point projection(const segment &l, const point &p) {
+	double t = dot(p - l[0], l[0] - l[1]) / norm(l[0] - l[1]);
+	return l[0] + t*(l[0] - l[1]);
+}
+point reflection(const segment &l, const point &p) {
+	return p + 2. * (projection(l, p) - p);
+}
+double distanceLP(const segment &l, const point &p) {
+	return abs(p - projection(l, p));
+}
+double distanceLL(const segment &l, const segment &m) {
+	return intersectLL(l, m) ? 0 : distanceLP(l, m[0]);
+}
+double distanceLS(const segment &l, const segment &s) {
+	if (intersectLS(l, s)) return 0;
+	return min(distanceLP(l, s[0]), distanceLP(l, s[1]));
+}
+double distanceSP(const segment &s, const point &p) {
+	const point r = projection(s, p);
+	if (intersectSP(s, r)) return abs(r - p);
+	return min(abs(s[0] - p), abs(s[1] - p));
+}
+double distanceSS(const segment &s, const segment &t) {
+	if (intersectSS(s, t)) return 0;
+	return min(min(distanceSP(s, t[0]), distanceSP(s, t[1])),
+		min(distanceSP(t, s[0]), distanceSP(t, s[1])));
+}
+double distancePP(const point &a,const point &b){
+	return abs(a-b);
+}
+
+/*多角形内包判定
+half-line crossing method
+OUT:0
+ON:1
+IN:2
+*/
+int contains(const vector<point>& Poly, const point& p) {
+	bool in = false;
+	for (int i = 0; i < Poly.size(); ++i) {
+		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
+		if (imag(a) > imag(b)) swap(a, b);
+		if (imag(a) + EPS <= 0 && EPS < imag(b))
+			if (cross(a, b) < 0) in = !in;
+		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
+	}
+	return in ? 2 : 0;
+}
+
+// 厳密に入っている時のみTrue
+bool contain_sector(const sector &sec, point &p){
+	if(abs(p - sec.o) + EPS > sec.r)return false;
+	point vec = p - sec.o;
+	point vecA = sec.a - sec.o;
+	point vecB = sec.b - sec.o;
+	if(angle(vec, vecA) < angle(vecA, vecB) && angle(vec, vecB) < angle(vecA, vecB))return true;
+	return false;
+}
+
+//交点
+point crosspointSS(const segment &l, const segment &m) {
+	double A = cross(l[1] - l[0], m[1] - m[0]);
+	double B = cross(l[1] - l[0], l[1] - m[0]);
+	if (abs(A) < EPS && abs(B) < EPS) return m[0]; // same line
+	if (abs(A) < EPS) return point(INF,INF); // !!!PRECONDITION NOT SATISFIED!!!
+	return m[0] + B / A * (m[1] - m[0]);
+}
+
+vector<point> crosspointCL(const circle &c, const segment &l) {
+	auto ret = vector<point>(2, point(INF, INF));
+	auto pro_p = projection(l, c.p);
+	auto dist = distanceLP(l, c.p);
+	if(abs(dist - c.r) < EPS){
+		ret[0] = pro_p;
+		return ret;
+	}
+	if(c.r < dist){
+		return ret;
+	}
+	point vec = (l[1] - l[0]) * sqrt(c.r * c.r - dist * dist) / abs(l[1] - l[0]);
+	ret[0] = pro_p + vec;
+	ret[1] = pro_p - vec;
+	return ret;
+}
+
+vector<point> crosspointCC(const circle c1, const circle c2) {
+	auto ret = vector<point>(2, point(INF, INF));
+	auto dist = abs(c2.p - c1.p);
+	if(eq(dist, c1.r + c2.r) || eq(dist, abs(c2.r - c1.r))){
+		auto tmp = c2.p - c1.p;
+		ret[0] = c1.p + tmp * (c1.r / dist);
+		return ret;
+	}
+	if(c1.r + c2.r < dist || dist < abs(c1.r - c2.r)){
+		return ret;
+	}
+	auto alpha = acos((c1.r * c1.r + dist * dist - c2.r * c2.r) / (2 * c1.r * dist));
+	auto theta = atan2(c2.p.imag() - c1.p.imag(), c2.p.real() - c1.p.real());
+	ret[0] = c1.p + point(cos(theta + alpha) * c1.r, sin(theta + alpha) * c1.r);
+	ret[1] = c1.p + point(cos(theta - alpha) * c1.r, sin(theta - alpha) * c1.r);
+	return ret;
+}
+
+bool isOnSector(const sector sec, const point p) {
+	point vec = p - sec.o;
+	point vecA = sec.a - sec.o;
+	point vecB = sec.b - sec.o;
+	if(eq(angle(vec, vecA) + angle(vec, vecB), angle(vecA, vecB)))return true;
+	return false;
+}
+
+vector<point> crosspointSecS(const sector sec, const segment s) {
+	circle c = circle(sec.o, sec.r);
+	auto ret = crosspointCL(c, s);
+	point inf = point(INF, INF);
+	REP(i, 2){
+		if(eq(ret[i], inf))continue;
+		if(!isOnSector(sec, ret[i])){
+			ret[i] = inf;
+			continue;
+		}
+		if(!intersectSP(s, ret[i])){
+			ret[i] = inf;
+		}
+	}
+	return ret;
+}
+vector<point> crosspointSecSec(const sector sec1, const sector sec2) {
+	circle c1 = circle(sec1.o, sec1.r);
+	circle c2 = circle(sec2.o, sec2.r);
+	auto ret = crosspointCC(c1, c2);
+	point inf = point(INF, INF);
+	REP(i, 2){
+		if(!isOnSector(sec1, ret[i])){
+			ret[i] = inf;
+			continue;
+		}
+		if(!isOnSector(sec2, ret[i])){
+			ret[i] = inf;
+		}
+	}
+	return ret;
+}
+
+
+//凸包
+vector<point> convex_hull(vector<point> ps) {
+	int n = ps.size(), k = 0;
+	sort(ps.begin(), ps.end());
+	vector<point> ch(2*n);
+	for (int i = 0; i < n; ch[k++] = ps[i++]) // lower-hull
+		while (k >= 2 && ccw(ch[k-2], ch[k-1], ps[i]) == -1) --k;
+	for (int i = n-2, t = k+1;i >= 0; ch[k++] = ps[i--]) // upper-hull
+		while (k >= t && ccw(ch[k-2], ch[k-1], ps[i]) == -1) --k;
+	ch.resize(k - 1);
+	return ch;
+}
+
+//見えるか(可視グラフ用)
+bool block_off(const point &a, const point &b, const vector<point> &obj) {
+  point m = (a + b) * 0.5;
+  bool on = false, in = false;
+  for (int j = 0; j < obj.size(); ++j) {
+    point c = curr(obj,j), d = next(obj,j);
+    if (imag(d) < imag(c)) swap(c, d);
+    if (cross(a-c,b-c) * cross(a-d,b-d) < 0 &&    // strictly intersect.
+        cross(c-a,d-a) * cross(c-b,d-b) < 0) return true;
+    if (cross(a-c,b-c) == 0 && dot(a-c,b-c) < 0) return true;
+    if (imag(c) <= imag(m) && imag(m) < imag(d))  // strictly contain.
+      if (cross(c-m,d-m) < 0) in = !in;
+    if (cross(c-m,d-m) == 0 && dot(c-m,d-m) <= EPS) on = true;
+  }
+  return !on && in;
+}
+
+//面積
+double area(const vector<point>& p) {
+	double A = 0;
+	for (int i = 0; i < p.size(); ++i)
+		A += cross(curr(p, i), next(p, i));
+	return A / 2.;
+}
+
 //凸包判定
 bool isConvex(vector<point> poly){
 	int sz = poly.size();
@@ -269,25 +378,7 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
     point A = curr(P, i), B = next(P, i);
     if (ccw(l[0], l[1], A) != -1) Q.push_back(A);
     if (ccw(l[0], l[1], A)*ccw(l[0], l[1], B) < 0)
-      Q.push_back(crosspoint(segment(A, B), l));
+      Q.push_back(crosspointSS(segment(A, B), l));
   }
   return Q;
-}
-
-int main() {
-	int n;cin >> n;
-	vector<point> v;
-	REP(i,n){
-		double a,b;cin >> a >> b;
-		v.PB(point(a,b));
-	}
-	cin >> n;
-	REP(i,n){
-		double a,b,c,d;cin >> a >> b >> c >> d;
-		segment now = segment(point(a,b),point(c,d));
-		vector<point> ret = convex_cut(v,now);
-		cout << Decimal << area(ret) << endl;
-	}
-		
-	return 0;
 }
