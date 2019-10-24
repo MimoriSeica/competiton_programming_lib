@@ -203,14 +203,21 @@ int contains(const vector<point>& Poly, const point& p) {
 	return in ? 2 : 0;
 }
 
-// 厳密に入っている時のみTrue
-bool contain_sector(const sector &sec, point &p){
-	if(abs(p - sec.o) + EPS > sec.r)return false;
+/*
+OUT:0
+ON:1
+IN:2
+*/
+int contain_sector(const sector &sec, point &p){
+	if(eq(abs(p - sec.o), sec.r))return 1;
+	if(intersectSP(segment(sec.o, sec.a), p))return 1;
+	if(intersectSP(segment(sec.o, sec.b), p))return 1;
+	if(abs(p - sec.o) + EPS > sec.r)return 0;
 	point vec = p - sec.o;
 	point vecA = sec.a - sec.o;
 	point vecB = sec.b - sec.o;
-	if(angle(vec, vecA) < angle(vecA, vecB) && angle(vec, vecB) < angle(vecA, vecB))return true;
-	return false;
+	if(angle(vec, vecA) + EPS < angle(vecA, vecB) && angle(vec, vecB) + EPS < angle(vecA, vecB))return 2;
+	return 0;
 }
 
 //交点
@@ -381,4 +388,10 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
       Q.push_back(crosspointSS(segment(A, B), l));
   }
   return Q;
+}
+
+int main(){
+	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
+
+	return 0;
 }
