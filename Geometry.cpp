@@ -57,9 +57,10 @@ struct sector {
 	sector(point O, point A, point B, double _r) :o(O), a(A), b(B), r(_r) {}
 };
 
-struct segment : public vector<point> {
+struct segment : public array<point, 2> {
 	segment(const point &a, const point &b) {
-		push_back(a); push_back(b);
+		at(0) = a;
+		at(1) = b;
 	}
 };
 
@@ -122,7 +123,7 @@ int ccw(point a, point b, point c) {
 	b -= a; c -= a;
 	if (cross(b, c) > EPS)   return +1;       // counter clockwise
 	if (cross(b, c) + EPS < 0)   return -1;       // clockwise
-	if (dot(b, c) - EPS < 0)     return +2;       // c--a--b on line
+	if (dot(b, c) < 0)     return +2;       // c--a--b on line
 	if (norm(b) < norm(c)) return -2;       // a--b--c on line
 	return 0;
 }
@@ -348,10 +349,7 @@ double area(const vector<point>& p) {
 bool isConvex(vector<point> poly){
 	int sz = poly.size();
 	REP(i,sz){
-		int tmp = ccw(poly[i],poly[(i+1)%sz],poly[(i+2)%sz]);
-		if(tmp == -1){
-			return false;
-		}
+		if(ccw(poly[i],poly[(i+1)%sz],poly[(i+2)%sz]) == -1)return false;
 	}
 	return true;
 }
