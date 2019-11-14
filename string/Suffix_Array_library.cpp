@@ -1,5 +1,3 @@
-//�ڔ����z���̍쐬
-//sa[]�͐ڔ����̏ꏊ
 #include <bits/stdc++.h>
 
 using namespace std;
