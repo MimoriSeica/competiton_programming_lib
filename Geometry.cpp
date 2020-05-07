@@ -210,9 +210,8 @@ int contains(const vector<point>& Poly, const point& p) {
 	for (int i = 0; i < Poly.size(); ++i) {
 		point a = curr(Poly, i) - p, b = next(Poly, i) - p;
 		if (imag(a) > imag(b)) swap(a, b);
-		if (imag(a) + EPS <= 0 && EPS < imag(b))
-			if (cross(a, b) < 0) in = !in;
-		if (abs(cross(a, b)) < EPS && dot(a, b) <= EPS) return 1;
+		if (imag(a) < EPS && EPS < imag(b) && cross(a, b) > EPS)in = !in;
+		if (abs(cross(a, b)) < EPS && dot(a, b) < EPS) return 1;
 	}
 	return in ? 2 : 0;
 }
@@ -432,6 +431,16 @@ circle max_circle_size_in_polygon(vector<point> &v){
 	return circle(ret, l);
 }
 
+circle circumscribed_circle(vector<point> p) {
+	segment seg_a = segment((p[1] + p[0]) * 0.5,
+	(p[1] + p[0]) * 0.5 + (p[1] - p[0]) * point(0, 1));
+	segment seg_b = segment((p[2] + p[1]) * 0.5,
+	(p[2] + p[1]) * 0.5 + (p[2] - p[1]) * point(0, 1));
+	circle ret;
+	ret.p = crosspointSS(seg_a, seg_b);
+	ret.r = distancePP(p[0], ret.p);
+	return ret;
+}
 
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
