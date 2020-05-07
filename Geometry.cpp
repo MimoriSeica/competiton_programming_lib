@@ -1,4 +1,17 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <deque>
+#include <queue>
+#include <algorithm>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <bitset>
+#include <cmath>
+#include <complex>
+#include <array>
+#include <functional>
 
 using namespace std;
 
@@ -387,6 +400,38 @@ vector<point> convex_cut(const vector<point> P, const segment& l) {
   }
   return Q;
 }
+
+point max_circle_size_in_polygon_check(double mid, vector<point> &v){
+	ll n = v.size();
+	vector<point> now(v);
+	REP(i, n){
+		auto a = v[i];
+		auto b = v[(i+1)%n];
+		auto vec = b - a;
+		vec /= abs(vec);
+		vec *= mid;
+		vec = rotate(vec, PI/2);
+		segment seg = segment(a + vec, b + vec);
+		now = convex_cut(now, seg);
+	}
+	return (now.empty() ? point(INF, INF): now[0]);
+}
+
+// 凸多角形に入る最大の円
+circle max_circle_size_in_polygon(vector<point> &v){
+	double l = 0;
+	double r = convex_diameter(v);
+	point ret;
+	REP(_, 1000){
+		if(abs(l - r) < EPS)break;
+		double mid = (l + r) / 2;
+		ret = max_circle_size_in_polygon_check(mid, v);
+		if(ret != point(INF, INF))l = mid;
+		else r = mid;
+	}
+	return circle(ret, l);
+}
+
 
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
