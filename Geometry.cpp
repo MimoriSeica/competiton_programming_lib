@@ -409,7 +409,7 @@ point max_circle_size_in_polygon_check(double mid, vector<point> &v){
 		auto vec = b - a;
 		vec /= abs(vec);
 		vec *= mid;
-		vec = rotate(vec, PI/2);
+		vec = vec * point(0, 1);
 		segment seg = segment(a + vec, b + vec);
 		now = convex_cut(now, seg);
 	}
@@ -431,6 +431,7 @@ circle max_circle_size_in_polygon(vector<point> &v){
 	return circle(ret, l);
 }
 
+//　三角形の外接円
 circle circumscribed_circle(vector<point> p) {
 	segment seg_a = segment((p[1] + p[0]) * 0.5,
 	(p[1] + p[0]) * 0.5 + (p[1] - p[0]) * point(0, 1));
