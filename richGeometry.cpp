@@ -483,6 +483,8 @@ circle circumscribed_circle(vector<point> p) {
 
 struct point3d {
 	double x, y, z;
+	point3d():x(0), y(0), z(0){}
+	point3d(const point3d &p):x(p.x), y(p.y), z(p.z){}
 	point3d(double x_, double y_, double z_):x(x_), y(y_), z(z_){}
 
 	point3d& operator+=(point3d a){x += a.x;y += a.y;z += a.z;return *this;}
@@ -499,7 +501,13 @@ struct point3d {
 		return (abs(x - a.x) < EPS && abs(y - a.y) < EPS && abs(z - a.z) < EPS);
 	}
 	bool operator!=(point3d a) const{return !(*this == a);}
+};
 
+struct segment3d: public array<point3d, 2> {
+	segment3d(const point3d &a, const point3d &b) {
+		at(0) = a;
+		at(1) = b;
+	}
 };
 
 double abs(point3d p) {
@@ -516,8 +524,13 @@ point3d cross(point3d a, point3d b){
 							   a.x * b.y - a.y * b.x);
 }
 
+double angle(point3d a, point3d b){
+	return acos(dot(a, b) / (abs(a) * abs(b)));
+}
+
 struct plane {
 	double a, b, c, d;
+	plane():a(0), b(0), c(0), d(0){}
 	plane(double a_, double b_, double c_, double d_):a(a_), b(b_), c(c_), d(d_){}
 	plane(point3d p1, point3d p2, point3d p3){
 		point3d A = p2 - p1;
@@ -525,6 +538,9 @@ struct plane {
 		point3d p = cross(A, B);
 		a = p.x;b = p.y;c = p.z;
 		d = -(a * p1.x + b * p1.y + c * p1.z);
+	}
+	double assignment(point3d p){
+		return a * p.x + b * p.y + c * p.z + d;
 	}
 };
 
@@ -546,9 +562,24 @@ point3d projection(point3d p, plane pl){
 	return p - a * d;
 }
 
+point3d crossPoint3d(segment3d s, plane p){
+	double bunsi = p.a * s[0].x + p.b * s[0].y + p.c * s[0].z + p.d;
+	double bunbo = p.a * (s[0].x - s[1].x) +
+								 p.b * (s[0].y - s[1].y) +
+								 p.c * (s[0].z - s[1].z);
+	if(abs(bunbo) < EPS)return point3d(INF, INF, INF);
+	double t = bunsi / bunbo;
+	return s[0] + (s[1] - s[0]) * t;
+}
+
 namespace std {
+	istream& operator>>(std::istream& is, point3d& p){
+		is >> p.x >> p.y >> p.z;
+		return is;
+	}
+
 	ostream& operator<<(ostream& os, const point3d& p){
-		os << "(" << p.x << ", " << p.y << ", " << p.z << ")";
+		os << p.x << " " << p.y << " " << p.z;
 		return os;
 	}
 
