@@ -644,7 +644,7 @@ void scale(vector<point3d> &p, double s){
 	REP(i, p.size())p[i] *= s;
 }
 
-// pをcenterを中心にaからbまで回転する
+// pをaxisを軸にaからbまで回転する
 void RotateWithAngleAxis(vector<point3d> &p, segment3d axis, point3d a, point3d b) {
 	point3d tmp = axis[0];
 	translation(p, -tmp);
