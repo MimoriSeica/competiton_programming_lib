@@ -11,6 +11,7 @@
 #include <cmath>
 #include <complex>
 #include <array>
+#include <cassert>
 #include <functional>
 
 using namespace std;
@@ -60,6 +61,7 @@ struct point {
 	point& operator/=(double a){x /= a;y /= a;return *this;}
 	point operator+(point a) const{return point(x, y)+=a;}
 	point operator-(point a) const{return point(x, y)-=a;}
+	point operator-() const{return point(-x, -y);}
 	point operator*(point a) const{return point(x, y)*=a;}
 	point operator*(double a) const{return point(x, y)*=a;}
 	point operator/(double a) const{return point(x, y)/=a;}
@@ -71,7 +73,7 @@ struct point {
 };
 
 template <class T>
-point operator*(const T a, const point p){return point(p.x * a, p.y * a);}
+point operator*(const T a, const point p){return p * a;}
 
 point conj(point p) {return point(p.x, -p.y);}
 double arg(point p) {return arg(complex<double>(p.x, p.y));}
@@ -80,16 +82,6 @@ double norm(point p) {return norm(complex<double>(p.x, p.y));}
 double real(point p) {return p.x;}
 double imag(point p) {return p.y;}
 
-namespace std {
-	istream& operator>>(std::istream& is, point& p){
-		is >> p.x >> p.y;
-    return is;
-}
-	ostream& operator<<(ostream& os, const point& p){
-		os << p.x << " " << p.y;
-		return os;
-	}
-}
 struct circle {
 	point p; double r;
 	circle(){}
@@ -481,18 +473,24 @@ circle circumscribed_circle(vector<point> p) {
 
 // ################################### 3D ####################################
 
+struct quaternion;
+quaternion conj(quaternion q);
 struct point3d {
 	double x, y, z;
 	point3d():x(0), y(0), z(0){}
 	point3d(const point3d &p):x(p.x), y(p.y), z(p.z){}
+	point3d(const quaternion &q); // 先行宣言
 	point3d(double x_, double y_, double z_):x(x_), y(y_), z(z_){}
 
 	point3d& operator+=(point3d a){x += a.x;y += a.y;z += a.z;return *this;}
 	point3d& operator-=(point3d a){x -= a.x;y -= a.y;z -= a.z;return *this;}
+	point3d& operator*=(quaternion q); // 先行宣言
 	point3d& operator*=(double a){x *= a;y *= a;z *= a;return *this;}
 	point3d& operator/=(double a){x /= a;y /= a;z /= a;return *this;}
 	point3d operator+(point3d a) const{return point3d(x, y, z)+=a;}
 	point3d operator-(point3d a) const{return point3d(x, y, z)-=a;}
+	point3d operator-() const{return point3d(-x, -y, -z);}
+	point3d operator*(quaternion q); // 先行宣言
 	point3d operator*(double a) const{return point3d(x, y, z)*=a;}
 	point3d operator/(double a) const{return point3d(x, y, z)/=a;}
 	bool operator<(point3d a) const{
@@ -503,6 +501,9 @@ struct point3d {
 	bool operator!=(point3d a) const{return !(*this == a);}
 };
 
+template <class T>
+point3d operator*(const T a, const point3d p){return p * a;}
+
 struct segment3d: public array<point3d, 2> {
 	segment3d(const point3d &a, const point3d &b) {
 		at(0) = a;
@@ -510,22 +511,38 @@ struct segment3d: public array<point3d, 2> {
 	}
 };
 
-double abs(point3d p) {
-	return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-}
-
-double dot(point3d a, point3d b){
-	return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
+double abs(point3d p) {	return sqrt(p.x * p.x + p.y * p.y + p.z * p.z); }
+double norm(point3d p) {	return p.x * p.x + p.y * p.y + p.z * p.z; }
+double dot(point3d a, point3d b){	return a.x * b.x + a.y * b.y + a.z * b.z; }
 point3d cross(point3d a, point3d b){
 	return point3d(a.y * b.z - a.z * b.y,
 								 a.z * b.x - a.x * b.z,
 							   a.x * b.y - a.y * b.x);
 }
 
+point3d projection(const segment3d &l, const point3d &p) {
+	double t = dot(p - l[0], l[0] - l[1]) / norm(l[0] - l[1]);
+	return l[0] + t*(l[0] - l[1]);
+}
+point3d reflection(const segment3d &l, const point3d &p) {
+	return p + 2. * (projection(l, p) - p);
+}
+
+bool intersect3dSP(const segment3d &s, const point3d &p) {
+	auto a = s[0] - p;
+	auto b = s[1] - p;
+	return (abs(cross(a, b)) < EPS && dot(a, b) <= EPS); // triangle inequality
+}
+
+bool intersect3dLP(const segment3d &l, const point3d &p) {
+	return abs(cross(l[1] - p, l[0] - p)) < EPS;
+}
+
 double angle(point3d a, point3d b){
-	return acos(dot(a, b) / (abs(a) * abs(b)));
+	double tmp = dot(a, b) / (abs(a) * abs(b));
+	if(tmp < -1)tmp = -1;
+	if(tmp > 1)tmp = 1;
+	return acos(tmp);
 }
 
 struct plane {
@@ -572,24 +589,121 @@ point3d crossPoint3d(segment3d s, plane p){
 	return s[0] + (s[1] - s[0]) * t;
 }
 
-namespace std {
-	istream& operator>>(std::istream& is, point3d& p){
-		is >> p.x >> p.y >> p.z;
-		return is;
+struct quaternion {
+	double x, y, z, w;
+	quaternion():x(0), y(0), z(0){}
+	quaternion(const point3d &p):x(p.x), y(p.y), z(p.z), w(0){}
+	quaternion(double x_, double y_, double z_, double w_):x(x_), y(y_), z(z_), w(w_){}
+	// ベクトルpを軸にrad回転させる
+	quaternion(const point3d &p, double rad){
+		assert(abs(p) > EPS);
+		point3d np(p);np /= abs(np);
+		x = np.x * sin(rad / 2);
+		y = np.y * sin(rad / 2);
+		z = np.z * sin(rad / 2);
+		w = cos(rad / 2);
+	}
+	quaternion& operator*=(double a){x *= a;y *= a;z *= a;w *= a;return *this;}
+	quaternion& operator/=(double a){x /= a;y /= a;z /= a;w /= a;return *this;}
+	quaternion& operator*=(quaternion q){
+		double xx = w * q.x + x * q.w - y * q.z + z * q.y;
+		double yy = w * q.y + x * q.z + y * q.w - z * q.x;
+		double zz = w * q.z - x * q.y + y * q.x + z * q.w;
+		double ww = w * q.w - x * q.x - y * q.y - z * q.z;
+		*this = quaternion(xx, yy, zz, ww);return *this;
+	}
+	quaternion operator*(quaternion q) const{return quaternion(x, y, z, w)*=q;}
+	quaternion operator*(double a) const{return quaternion(x, y, z, w)*=a;}
+	quaternion operator/(double a) const{return quaternion(x, y, z, w)/=a;}
+};
+
+quaternion conj(quaternion q) {
+	 return quaternion(-q.x, -q.y, -q.z, q.w);
+ }
+double abs(quaternion q) {
+	return sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+}
+quaternion normalization(quaternion q){
+	return q / abs(q);
+}
+
+point3d::point3d(const quaternion &q):x(q.x), y(q.y), z(q.z){}
+point3d& point3d::operator*=(quaternion q){
+	normalization(q);
+	*this = point3d(q * quaternion(*this) * conj(q));
+	return *this;
+}
+point3d point3d::operator*(quaternion q){ return point3d(x, y, z)*= q; }
+
+// vecへ平行移動
+void translation(vector<point3d> &p, point3d vec){
+	REP(i, p.size())p[i] += vec;
+}
+
+void scale(vector<point3d> &p, double s){
+	REP(i, p.size())p[i] *= s;
+}
+
+// pをcenterを中心にaからbまで回転する
+void RotateWithAngleAxis(vector<point3d> &p, segment3d axis, point3d a, point3d b) {
+	point3d tmp = axis[0];
+	translation(p, -tmp);
+	axis[0] -= tmp;axis[1] -= tmp;
+	a -= tmp;b -= tmp;
+
+	point3d avec = a - projection(axis, a);
+	point3d bvec = b - projection(axis, b);
+	if(abs(avec) < EPS || abs(bvec) < EPS){
+
+	}
+	else if(eq(abs(cross(avec, bvec)), 0)){
+		quaternion q = quaternion(axis[1], angle(avec, bvec));
+		REP(i, p.size())p[i] *= q;
+	}
+	else{
+		quaternion q = quaternion(cross(bvec, avec), angle(avec, bvec));
+		REP(i, p.size())p[i] *= q;
 	}
 
-	ostream& operator<<(ostream& os, const point3d& p){
-		os << p.x << " " << p.y << " " << p.z;
-		return os;
-	}
-
-	ostream& operator<<(ostream& os, const plane& p){
-		os << p.a << "x + " << p.b << "y + " << p.c << "z + " << p.d;
-		return os;
-	}
+	translation(p, tmp);
+	axis[0] += tmp;axis[1] += tmp;
+	a += tmp;b += tmp;
 }
 
 // ################################### 3D ####################################
+// ################################### IO ####################################
+
+istream& operator>>(std::istream& is, point3d& p){
+	is >> p.x >> p.y >> p.z;
+	return is;
+}
+
+ostream& operator<<(ostream& os, const point3d& p){
+	os << p.x << " " << p.y << " " << p.z;
+	return os;
+}
+
+ostream& operator<<(ostream& os, const quaternion& q){
+	os << q.x << " " << q.y << " " << q.z << " " << q.w;
+	return os;
+}
+
+ostream& operator<<(ostream& os, const plane& p){
+	os << p.a << "x + " << p.b << "y + " << p.c << "z + " << p.d;
+	return os;
+}
+
+istream& operator>>(std::istream& is, point& p){
+	is >> p.x >> p.y;
+  return is;
+}
+
+ostream& operator<<(ostream& os, const point& p){
+	os << p.x << " " << p.y;
+	return os;
+}
+
+// ################################### IO ####################################
 
 int main(){
 	cin.tie(0);cout.tie(0);ios::sync_with_stdio(false);
