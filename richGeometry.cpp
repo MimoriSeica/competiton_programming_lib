@@ -45,6 +45,7 @@ typedef pair<ll, ll> P;
 const double EPS = 1e-8;
 const double EPS_GIG = 1e-3;
 const double PI = acos(-1.0);
+
 struct point {
 	double x, y;
 	point(double x_, double y_):x(x_), y(y_){};
@@ -66,8 +67,6 @@ struct point {
 	point operator*(double a) const{return point(x, y)*=a;}
 	point operator/(double a) const{return point(x, y)/=a;}
 	bool operator<(point a) const{return (x != a.x ? x < a.x : y < a.y);}
-	bool operator==(point a) const{return (abs(x - a.x) < EPS && abs(y - a.y) < EPS);}
-	bool operator!=(point a) const{return !(abs(x - a.x) >= EPS || abs(y - a.y) >= EPS);}
 	double real() {return x;}
 	double imag() {return y;}
 };
@@ -453,7 +452,7 @@ circle max_circle_size_in_polygon(vector<point> &v){
 		if(abs(l - r) < EPS)break;
 		double mid = (l + r) / 2;
 		ret = max_circle_size_in_polygon_check(mid, v);
-		if(ret != point(INF, INF))l = mid;
+		if(!eq(ret, point(INF, INF)))l = mid;
 		else r = mid;
 	}
 	return circle(ret, l);
@@ -495,10 +494,6 @@ struct point3d {
 	point3d operator/(double a) const{return point3d(x, y, z)/=a;}
 	bool operator<(point3d a) const{
 		return (x != a.x ? x < a.x : (y != a.y ? y < a.y : z < a.z));}
-	bool operator==(point3d a) const{
-		return (abs(x - a.x) < EPS && abs(y - a.y) < EPS && abs(z - a.z) < EPS);
-	}
-	bool operator!=(point3d a) const{return !(*this == a);}
 };
 
 template <class T>
