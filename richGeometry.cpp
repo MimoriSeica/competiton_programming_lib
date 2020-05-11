@@ -88,7 +88,7 @@ struct circle {
 };
 
 // 扇型、中心と半径、二つの端点
-// 現在中心角が180未満の前提
+// a から b まで
 struct sector {
 	point o;
 	point a, b;
@@ -119,10 +119,11 @@ double add_rad(double a,double b){
 	return ret;
 }
 
-//なす角(vector)
+//a -> b と反時計回りに巡った時の角度
 double angle(const point &a,const point &b) {
-	auto tmp = abs(arg(a) - arg(b));
-	return min(tmp, 2 * PI - tmp);
+	auto tmp = arg(b) - arg(a);
+	if(tmp < 0)tmp += 2 * PI;
+	return tmp;
 }
 
 double angle(const segment &s1,const segment &s2) {
@@ -145,7 +146,7 @@ bool isParallel(const segment &a, const segment &b){
 }
 //直行
 bool isOrthogonal(const point &a,const point &b){
-	return abs(angle(a,b) - PI / 2) < EPS;
+	return eq(abs(angle(a, b) - PI), PI / 2);
 }
 bool isOrthogonal(const segment &a,const segment &b){
 	return isOrthogonal(a[1]-a[0],b[1]-b[0]);
@@ -168,61 +169,61 @@ int ccw(point a, point b, point c) {
 	return 0;
 }
 
-bool intersectLL(const segment &l, const segment &m) {
+bool intersectLL(const segment l, const segment m) {
 	return abs(cross(l[1] - l[0], m[1] - m[0])) > EPS || // non-parallel
 		abs(cross(l[1] - l[0], m[0] - l[0])) < EPS;   // same line
 }
-bool intersectLS(const segment &l, const segment &s) {
+bool intersectLS(const segment l, const segment s) {
 	return cross(l[1] - l[0], s[0] - l[0])*       // s[0] is left of l
 		cross(l[1] - l[0], s[1] - l[0]) < EPS; // s[1] is right of l
 }
-bool intersectLP(const segment &l, const point &p) {
+bool intersectLP(const segment l, const point p) {
 	return abs(cross(l[1] - p, l[0] - p)) < EPS;
 }
-bool intersectSP(const segment &s, const point &p) {
+bool intersectSP(const segment s, const point p) {
 	auto a = s[0] - p;
 	auto b = s[1] - p;
 	return (abs(cross(a, b)) < EPS && dot(a, b) <= EPS); // triangle inequality
 }
 //端点の交差も考える
-bool intersectSS(const segment &s, const segment &t) {
+bool intersectSS(const segment s, const segment t) {
 	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) <= 0 &&
 		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) <= 0;
 }
 //端点の交差hは考えない
-bool strictIntersectSS(const segment &s, const segment &t) {
+bool strictIntersectSS(const segment s, const segment t) {
 	return ccw(s[0], s[1], t[0]) * ccw(s[0], s[1], t[1]) == -1 &&
 		ccw(t[0], t[1], s[0]) * ccw(t[0], t[1], s[1]) == -1;
 }
 
-point projection(const segment &l, const point &p) {
+point projection(const segment l, const point p) {
 	double t = dot(p - l[0], l[0] - l[1]) / norm(l[0] - l[1]);
 	return l[0] + t*(l[0] - l[1]);
 }
-point reflection(const segment &l, const point &p) {
+point reflection(const segment l, const point p) {
 	return p + 2. * (projection(l, p) - p);
 }
-double distanceLP(const segment &l, const point &p) {
+double distanceLP(const segment l, const point p) {
 	return abs(p - projection(l, p));
 }
-double distanceLL(const segment &l, const segment &m) {
+double distanceLL(const segment l, const segment m) {
 	return intersectLL(l, m) ? 0 : distanceLP(l, m[0]);
 }
-double distanceLS(const segment &l, const segment &s) {
+double distanceLS(const segment l, const segment s) {
 	if (intersectLS(l, s)) return 0;
 	return min(distanceLP(l, s[0]), distanceLP(l, s[1]));
 }
-double distanceSP(const segment &s, const point &p) {
+double distanceSP(const segment s, const point p) {
 	const point r = projection(s, p);
 	if (intersectSP(s, r)) return abs(r - p);
 	return min(abs(s[0] - p), abs(s[1] - p));
 }
-double distanceSS(const segment &s, const segment &t) {
+double distanceSS(const segment s, const segment t) {
 	if (intersectSS(s, t)) return 0;
 	return min(min(distanceSP(s, t[0]), distanceSP(s, t[1])),
 		min(distanceSP(t, s[0]), distanceSP(t, s[1])));
 }
-double distancePP(const point &a,const point &b){
+double distancePP(const point a,const point b){
 	return abs(a-b);
 }
 
@@ -243,20 +244,29 @@ int contains(const vector<point>& Poly, const point& p) {
 	return in ? 2 : 0;
 }
 
+bool isOnSector(const sector sec, const point p) {
+	if(intersectSP(segment(sec.o, sec.a), p))return true;
+	if(intersectSP(segment(sec.o, sec.b), p))return true;
+	if(!eq(abs(sec.o - p), sec.r))return false;
+	point vec = p - sec.o;
+	point vecA = sec.a - sec.o;
+	point vecB = sec.b - sec.o;
+	if(angle(vecA, vec) < angle(vecA, vecB) + EPS)return true;
+	return false;
+}
+
 /*
 OUT:0
 ON:1
 IN:2
 */
 int contain_sector(const sector &sec, point &p){
-	if(eq(abs(p - sec.o), sec.r))return 1;
-	if(intersectSP(segment(sec.o, sec.a), p))return 1;
-	if(intersectSP(segment(sec.o, sec.b), p))return 1;
-	if(abs(p - sec.o) + EPS > sec.r)return 0;
+	if(isOnSector(sec, p))return 1;
+	if(sec.r + EPS < abs(p - sec.o))return 0;
 	point vec = p - sec.o;
 	point vecA = sec.a - sec.o;
 	point vecB = sec.b - sec.o;
-	if(angle(vec, vecA) + EPS < angle(vecA, vecB) && angle(vec, vecB) + EPS < angle(vecA, vecB))return 2;
+	if(angle(vecA, vec) < angle(vecA, vecB) + EPS)return 2;
 	return 0;
 }
 
@@ -302,14 +312,6 @@ vector<point> crosspointCC(const circle c1, const circle c2) {
 	ret[0] = c1.p + point(cos(theta + alpha) * c1.r, sin(theta + alpha) * c1.r);
 	ret[1] = c1.p + point(cos(theta - alpha) * c1.r, sin(theta - alpha) * c1.r);
 	return ret;
-}
-
-bool isOnSector(const sector sec, const point p) {
-	point vec = p - sec.o;
-	point vecA = sec.a - sec.o;
-	point vecB = sec.b - sec.o;
-	if(eq(angle(vec, vecA) + angle(vec, vecB), angle(vecA, vecB)))return true;
-	return false;
 }
 
 vector<point> crosspointSecS(const sector sec, const segment s) {
