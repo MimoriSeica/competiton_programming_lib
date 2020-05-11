@@ -472,6 +472,19 @@ circle circumscribed_circle(vector<point> p) {
 	return ret;
 }
 
+// ################################### IO ####################################
+
+istream& operator>>(std::istream& is, point& p){
+	is >> p.x >> p.y;
+  return is;
+}
+
+ostream& operator<<(ostream& os, const point& p){
+	os << p.x << " " << p.y;
+	return os;
+}
+
+// ################################### IO ####################################
 // ################################### 3D ####################################
 
 struct quaternion;
@@ -687,16 +700,6 @@ ostream& operator<<(ostream& os, const quaternion& q){
 
 ostream& operator<<(ostream& os, const plane& p){
 	os << p.a << "x + " << p.b << "y + " << p.c << "z + " << p.d;
-	return os;
-}
-
-istream& operator>>(std::istream& is, point& p){
-	is >> p.x >> p.y;
-  return is;
-}
-
-ostream& operator<<(ostream& os, const point& p){
-	os << p.x << " " << p.y;
 	return os;
 }
 
