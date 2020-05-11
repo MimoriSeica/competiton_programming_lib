@@ -548,6 +548,10 @@ bool intersect3dLP(const segment3d &l, const point3d &p) {
 	return abs(cross(l[1] - p, l[0] - p)) < EPS;
 }
 
+double distance3dLP(segment3d s, point3d p){
+	return abs(p - projection(s, p));
+}
+
 double angle(point3d a, point3d b){
 	double tmp = dot(a, b) / (abs(a) * abs(b));
 	if(tmp < -1)tmp = -1;
