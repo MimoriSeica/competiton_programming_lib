@@ -19,7 +19,7 @@ struct UF {
 		if(sz[x] > sz[y])swap(x, y);
 		par[x] = y;
 		sz[y] += sz[x];
-		// マージデクはここでやる
+		// マージデクはここでやる(x -> y)
 	}
 	// xとyが同じ集合ならtrue
 	bool same(int x, int y) { return find(x) == find(y); }
